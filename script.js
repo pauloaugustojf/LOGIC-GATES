@@ -95,13 +95,11 @@ const propsContext = {
     {nome: "svgAnd", type: "2", posx: 600, posy: 300, preSelecioned: true, selecioned: false},
     {nome: "svgOr", type: "3", posx: 300, posy: 200, preSelecioned: false, selecioned: true},
   ],
-  lines: [
-
-  ],
+  lines: [],
   activeMode: "svgAnd",
   mousePos: {x: 0, y: 0, sx: 0, sy: 0},
   drawMousePos: true,
-  arrHighSignalCoord: [],
+  arrOfConnections: [],
   calcSignals: false,
   inputPosition: {
     1:[{y: 40}],
@@ -123,11 +121,51 @@ const propsContext = {
 
 
 
-const calcSignal = ({itens, defaultProps, arrHighSignalCoord, inputPosition}) => {
-  
-  itens.forEach(item => {
+const calcSignal = ({itens, defaultProps, arrOfConnections, inputPosition}) => {
+
+  const createConnection = (index, points, level) => {
+    let connection = {index, points, level: !!level}
+    return connection
+  }
+
+  const addPointInConnection = (inConnection, inPoint) => {
+    let connection = inConnection
+    connection.points.push(inPoint)
+    return connection
+  }
+
+  const findConnection = (inPoint) => {
+    let connection = arrOfConnections.find(connection => {
+      const point = connection.points.find(point => {
+        const isEquals = point.x === inPoint.x && point.y === inPoint.y
+        return isEquals
+      })
+      return !!point
+    }) 
+    return connection
+  }
+
+  arrOfConnections.push(createConnection(1,[{x: 10, y: 20}, {x: 30, y: 40}]))
+  console.log(arrOfConnections)
+  console.log(findConnection({x: 30, y: 40}))
+
+  /*itens.forEach(item => {
     if(item.nome === "svgIn" && item.type == 1){
-      arrHighSignalCoord.push({x: (item.posx + 80) , y: (item.posy + 40) })
+      let point = {x: (item.posx + 80) , y: (item.posy + 40) }
+      let connection = findConnection(point)
+      if(connection){
+        addPointInConnection(connection,point)
+      } else {
+        createConnection(arrOfConnections.lenght, point, true)
+      }
+    } else if(item.nome === "svgIn" && item.type == 0){
+      let point = {x: (item.posx + 80) , y: (item.posy + 40) }
+      let connection = findConnection(point)
+      if(connection){
+        addPointInConnection(connection,point)
+      } else {
+        createConnection(arrOfConnections.lenght, point, true)
+      }
     }
 
     const funcItem = defaultProps[item.nome].function
@@ -137,7 +175,7 @@ const calcSignal = ({itens, defaultProps, arrHighSignalCoord, inputPosition}) =>
         return {x: item.posx, y: item.posy + y}
       })
       let posInputsHigh = []
-      posInputsHigh = arrHighSignalCoord.filter(({x,y}) => {
+      posInputsHigh = arrOfConnections.filter(({x,y}) => {
         for(let [index, pos] of posInputsLow.entries()){
           if(pos.x === x && pos.y === y){
             posInputsLow.splice(index,1)
@@ -149,12 +187,12 @@ const calcSignal = ({itens, defaultProps, arrHighSignalCoord, inputPosition}) =>
       let inputsLevel = []
       inputsLevel = posInputsHigh.map(()=>{return true}).concat(posInputsLow.map(()=>{return false}))
       if(funcItem(...inputsLevel)){
-        arrHighSignalCoord.push({x: (item.posx + 80) , y: (item.posy + 40) })
+        arrOfConnections.push({x: (item.posx + 80) , y: (item.posy + 40) })
       }
     }
 
     if(item.nome === "svgOut" && item.type == 0){
-      arrHighSignalCoord.some(({x,y}) => {
+      arrOfConnections.some(({x,y}) => {
         if(item.posx === x && (item.posy + 40) === y){
           item.type = 1
         }
@@ -167,16 +205,16 @@ const calcSignal = ({itens, defaultProps, arrHighSignalCoord, inputPosition}) =>
 
 
   propsContext.lines.forEach((line, index) => {
-    arrHighSignalCoord.some(({x,y}) => {
+    arrOfConnections.some(({x,y}) => {
       if((line.initPoint.x === x && line.initPoint.y === y) || (line.endPoint.x === x && line.endPoint.y === y)){
         line.logicLevel = true
 
       }
     })
   })
+*/
 
-
-  arrHighSignalCoord = []
+  arrOfConnections = []
   propsContext.calcSignals = false
 }
 
@@ -187,7 +225,9 @@ const frameRender = () => {
     propsContext.mousePos = setCollision(propsContext)
   }
 
-  if(propsContext.calcSignals){calcSignal(propsContext)}
+  if(propsContext.calcSignals){
+    calcSignal(propsContext)
+  }
 
   draw()
 
