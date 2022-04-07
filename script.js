@@ -1,7 +1,7 @@
 import { imgList } from "./js/createimglist.js";
 import { getMode } from "./js/sidebuttons.js";
 import { setCollision } from "./js/collision.js";
-
+import { calcSignal } from "./js/calcsignal.js";
 
 
 const canvas = document.getElementById("canvas")
@@ -23,14 +23,37 @@ const getMousePos = evt => {
   }
 }
 
-const createSvgItem = (mode, type, posx, posy) => {
+
+const getInputs = ({mode, type, posx, posy}) => {
+  let inputConnections = {}
+  let inputs = propsContext.defaultProps[mode].dataIn
+  inputConnections = !!inputs[0] ? 
+  propsContext.inputPosition[inputs.find(numberOfEntries => (numberOfEntries == type)) || inputs[0]].map(({y}) => {return {inPos:{x: posx, y: posy + y}, logicLevel: 0, connected: false, inputItemId: undefined}}) : []
+  return inputConnections
+}
+
+const getOutputs = ({mode, type, posx, posy}) => {
+  let outputConnection = {}
+  let output = propsContext.defaultProps[mode].dataOut
+  outputConnection = !!output ? {outPos:{x: posx + 80, y: posy + 40}, logicLevel: 0, connected: false} : undefined
+  return outputConnection
+}
+
+const createItem = (mode, type, posx, posy) => {
   let item = {}
-  item.nome = mode
+  item.id = propsContext.itens.length
+  item.mode = mode
   item.type = type
   item.posx = posx
   item.posy = posy
   item.selecioned = false
   item.preSelecioned = false
+  
+  item.inputConnections = getInputs(item)
+
+  item.outputConnection = getOutputs(item)
+
+  console.log(item.inputConnections,item.outputConnection)
   return item
 }
 
@@ -51,7 +74,8 @@ const createLine = (inLine, point) => {
 
 const canvasClick = evt => {
   if(propsContext.defaultProps[propsContext.activeMode].drawSvg){
-    propsContext.itens.push(createSvgItem(propsContext.activeMode, propsContext.defaultProps[propsContext.activeMode].type, propsContext.mousePos.sx - 40, propsContext.mousePos.sy - 40 ))
+    propsContext.itens.push(createItem(propsContext.activeMode, propsContext.defaultProps[propsContext.activeMode].type, propsContext.mousePos.sx - 40, propsContext.mousePos.sy - 40 ))
+    //console.log(propsContext.itens)
   } else {
     propsContext.itens.forEach(item => {
       item.selecioned = item.preSelecioned
@@ -67,9 +91,11 @@ const canvasClick = evt => {
       propsContext.lines[indexOfLine] = createLine(line, point)
     } else {
       propsContext.lines.push(createLine(line,point))
-    }
-    console.log(propsContext.lines)
-    
+    }  
+  }
+
+  if(propsContext.activeMode === "cursor"){
+    calcSignal(propsContext)
   }
   propsContext.calcSignals = true
 }
@@ -77,29 +103,56 @@ const canvasClick = evt => {
 canvas.addEventListener("mousemove",getMousePos)
 canvas.addEventListener("click", canvasClick)
 
-const functionOr = (...input) => {
-  return input.some(item => !!item)
+const functionOr = (...input) => input.some(item => !!item)
+
+const functionAnd = (...input) => input.every(item => !!item)
+
+const functionNot = input => !input
+
+const functionXOr = (...input) => {
+  let arr = input.map((data1,indexmap) => {
+    let arrNot = [data1, ...input.filter((_,indexfilter) => (indexmap != indexfilter)).map(data2 => !data2)]
+    return functionAnd(...arrNot)
+  })
+  return functionOr(...arr)
 }
 
-const functionAnd = (...input) => {
-  return !input.some(item => !item)
-}
+const functionIn = (...input) => {return !!+input.pop().type}
 
-const functionNot = (input) => {
-  return !input
-}
+const functionOut = (input) => +input
+
 
 const propsContext = {
   backgroundGridSize: 10,
   itens: [
-    {nome: "svgAnd", type: "2", posx: 600, posy: 300, preSelecioned: true, selecioned: false},
-    {nome: "svgOr", type: "3", posx: 300, posy: 200, preSelecioned: false, selecioned: true},
+    /*{
+      id: 0, 
+      mode: "svgAnd", 
+      type: "2", 
+      posx: 600, 
+      posy: 300, 
+      preSelecioned: true, 
+      selecioned: false, 
+      inputConnections: {}, 
+      outputConnection: false
+    },
+    {
+      id: 1, 
+      mode: "svgOr", 
+      type: "3", 
+      posx: 300, 
+      posy: 200, 
+      preSelecioned: false, 
+      selecioned: true, 
+      inputConnections: {}, 
+      outputConnection: false
+    },*/
   ],
   lines: [],
   activeMode: "svgAnd",
   mousePos: {x: 0, y: 0, sx: 0, sy: 0},
   drawMousePos: true,
-  arrOfConnections: [],
+  connectionList: [],
   calcSignals: false,
   inputPosition: {
     1:[{y: 40}],
@@ -110,113 +163,14 @@ const propsContext = {
   defaultProps: {
     cursor: {type: "", drawSvg: false},
     line: {type: "", drawSvg: false},
-    svgOr: {type: "2", drawSvg: true, function: functionOr},
-    svgAnd: {type: "2", drawSvg: true, function: functionAnd},
-    svgNot: {type: "1", drawSvg: true, function: functionNot},
-    svgIn: {type: "1", drawSvg: true},
-    svgOut: {type: "0", drawSvg: true},
+    svgOr: {type: "2", drawSvg: true, dataIn: [2,3,4], dataOut: 1, function: functionOr, returnTo: "outputConnection.logicLevel"},
+    svgAnd: {type: "2", drawSvg: true, dataIn: [2,3,4], dataOut: 1, function: functionAnd, returnTo: "outputConnection.logicLevel"},
+    svgNot: {type: "1", drawSvg: true, dataIn: [1], dataOut: 1, function: functionNot, returnTo: "outputConnection.logicLevel"},
+    svgIn: {type: "1", drawSvg: true, dataIn: [0], dataOut: 1, function: functionIn, returnTo: "outputConnection.logicLevel"},
+    svgOut: {type: "0", drawSvg: true, dataIn: [1], dataOut: 0, function: functionOut, returnTo: "type"},
   }
 }
 
-
-
-
-const calcSignal = ({itens, defaultProps, arrOfConnections, inputPosition}) => {
-
-  const createConnection = (index, points, level) => {
-    let connection = {index, points, level: !!level}
-    return connection
-  }
-
-  const addPointInConnection = (inConnection, inPoint) => {
-    let connection = inConnection
-    connection.points.push(inPoint)
-    return connection
-  }
-
-  const findConnection = (inPoint) => {
-    let connection = arrOfConnections.find(connection => {
-      const point = connection.points.find(point => {
-        const isEquals = point.x === inPoint.x && point.y === inPoint.y
-        return isEquals
-      })
-      return !!point
-    }) 
-    return connection
-  }
-
-  arrOfConnections.push(createConnection(1,[{x: 10, y: 20}, {x: 30, y: 40}]))
-  console.log(arrOfConnections)
-  console.log(findConnection({x: 30, y: 40}))
-
-  /*itens.forEach(item => {
-    if(item.nome === "svgIn" && item.type == 1){
-      let point = {x: (item.posx + 80) , y: (item.posy + 40) }
-      let connection = findConnection(point)
-      if(connection){
-        addPointInConnection(connection,point)
-      } else {
-        createConnection(arrOfConnections.lenght, point, true)
-      }
-    } else if(item.nome === "svgIn" && item.type == 0){
-      let point = {x: (item.posx + 80) , y: (item.posy + 40) }
-      let connection = findConnection(point)
-      if(connection){
-        addPointInConnection(connection,point)
-      } else {
-        createConnection(arrOfConnections.lenght, point, true)
-      }
-    }
-
-    const funcItem = defaultProps[item.nome].function
-    if(!!funcItem){
-      let posInputsLow = []
-      posInputsLow = inputPosition[item.type].map(({y}) => {
-        return {x: item.posx, y: item.posy + y}
-      })
-      let posInputsHigh = []
-      posInputsHigh = arrOfConnections.filter(({x,y}) => {
-        for(let [index, pos] of posInputsLow.entries()){
-          if(pos.x === x && pos.y === y){
-            posInputsLow.splice(index,1)
-            return true
-          }
-        }
-        
-      })
-      let inputsLevel = []
-      inputsLevel = posInputsHigh.map(()=>{return true}).concat(posInputsLow.map(()=>{return false}))
-      if(funcItem(...inputsLevel)){
-        arrOfConnections.push({x: (item.posx + 80) , y: (item.posy + 40) })
-      }
-    }
-
-    if(item.nome === "svgOut" && item.type == 0){
-      arrOfConnections.some(({x,y}) => {
-        if(item.posx === x && (item.posy + 40) === y){
-          item.type = 1
-        }
-      })
-    }
-
-
-  })
-
-
-
-  propsContext.lines.forEach((line, index) => {
-    arrOfConnections.some(({x,y}) => {
-      if((line.initPoint.x === x && line.initPoint.y === y) || (line.endPoint.x === x && line.endPoint.y === y)){
-        line.logicLevel = true
-
-      }
-    })
-  })
-*/
-
-  arrOfConnections = []
-  propsContext.calcSignals = false
-}
 
 const frameRender = () => {
   propsContext.activeMode = getMode()
@@ -226,7 +180,7 @@ const frameRender = () => {
   }
 
   if(propsContext.calcSignals){
-    calcSignal(propsContext)
+    Object.assign(propsContext, calcSignal(propsContext))
   }
 
   draw()
@@ -296,7 +250,7 @@ const draw = () => {
 
   const drawSvg = () =>{
     propsContext.itens.forEach(item =>{
-      context.drawImage(eval(imgList[item.nome + item.type]), item.posx, item.posy, 80, 80)
+      context.drawImage(eval(imgList[item.mode + item.type]), item.posx, item.posy, 80, 80)
     })
 
     if(propsContext.defaultProps[propsContext.activeMode].drawSvg){

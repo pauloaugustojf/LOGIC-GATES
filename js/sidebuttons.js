@@ -9,9 +9,7 @@ const editMode = selectedMode => {
 const clickBtn = ({currentTarget}) => {
   const selectedMode = currentTarget.classList[0]
   const modeEdited = editMode(selectedMode)
-  //console.log(modeEdited)
   mode = modeEdited
-  //propsContext.activeMode = modeEdited
   sideButtons.forEach(item => item.classList.remove("active"))
   currentTarget.classList.add("active")
 }
