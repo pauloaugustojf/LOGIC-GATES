@@ -28,14 +28,19 @@ const getInputs = ({mode, type, posx, posy}) => {
   let inputConnections = {}
   let inputs = propsContext.defaultProps[mode].dataIn
   inputConnections = !!inputs[0] ? 
-  propsContext.inputPosition[inputs.find(numberOfEntries => (numberOfEntries == type)) || inputs[0]].map(({y}) => {return {inPos:{x: posx, y: posy + y}, logicLevel: 0, connected: false, inputItemId: undefined}}) : []
+  propsContext.inputPosition[inputs.find(numberOfEntries => (numberOfEntries == type)) || inputs[0]].map(({y}) => {return {inPos:{x: posx, y: posy + y}, logicLevel: 0, connected: false, connectionId: undefined}}) : []
   return inputConnections
 }
 
 const getOutputs = ({mode, type, posx, posy}) => {
   let outputConnection = {}
   let output = propsContext.defaultProps[mode].dataOut
-  outputConnection = !!output ? {outPos:{x: posx + 80, y: posy + 40}, logicLevel: 0, connected: false} : undefined
+  outputConnection = !!output ? 
+    {outPos:{x: posx + 80, y: posy + 40}, 
+    logicLevel: 0, 
+    connected: false, 
+    connectionId: undefined} : undefined
+
   return outputConnection
 }
 
@@ -103,23 +108,23 @@ const canvasClick = evt => {
 canvas.addEventListener("mousemove",getMousePos)
 canvas.addEventListener("click", canvasClick)
 
-const functionOr = (...input) => input.some(item => !!item)
+const functionOr = (...input) => {logicLevel: input.some(item => !!item)}
 
-const functionAnd = (...input) => input.every(item => !!item)
+const functionAnd = (...input) => {logicLevel: input.every(item => !!item)}
 
-const functionNot = input => !input
+const functionNot = input => {logicLevel: !input}
 
 const functionXOr = (...input) => {
   let arr = input.map((data1,indexmap) => {
     let arrNot = [data1, ...input.filter((_,indexfilter) => (indexmap != indexfilter)).map(data2 => !data2)]
     return functionAnd(...arrNot)
   })
-  return functionOr(...arr)
+  return {logicLevel: functionOr(...arr)}
 }
 
-const functionIn = (...input) => {return !!+input.pop().type}
+const functionIn = (...input) => ({logicLevel: !!+input.pop().type})
 
-const functionOut = (input) => +input
+const functionOut = (input) => ({type: +input+""})
 
 
 const propsContext = {
@@ -152,7 +157,7 @@ const propsContext = {
   activeMode: "svgAnd",
   mousePos: {x: 0, y: 0, sx: 0, sy: 0},
   drawMousePos: true,
-  connectionList: [],
+  connectionList: {0:{logicLevel: 0, inputs:[{}], outputs:[]}},
   calcSignals: false,
   inputPosition: {
     1:[{y: 40}],
@@ -163,11 +168,11 @@ const propsContext = {
   defaultProps: {
     cursor: {type: "", drawSvg: false},
     line: {type: "", drawSvg: false},
-    svgOr: {type: "2", drawSvg: true, dataIn: [2,3,4], dataOut: 1, function: functionOr, returnTo: "outputConnection.logicLevel"},
-    svgAnd: {type: "2", drawSvg: true, dataIn: [2,3,4], dataOut: 1, function: functionAnd, returnTo: "outputConnection.logicLevel"},
-    svgNot: {type: "1", drawSvg: true, dataIn: [1], dataOut: 1, function: functionNot, returnTo: "outputConnection.logicLevel"},
-    svgIn: {type: "1", drawSvg: true, dataIn: [0], dataOut: 1, function: functionIn, returnTo: "outputConnection.logicLevel"},
-    svgOut: {type: "0", drawSvg: true, dataIn: [1], dataOut: 0, function: functionOut, returnTo: "type"},
+    svgOr: {type: "2", drawSvg: true, dataIn: [2,3,4], dataOut: 1, function: functionOr, returnTo: "outputConnection"},
+    svgAnd: {type: "2", drawSvg: true, dataIn: [2,3,4], dataOut: 1, function: functionAnd, returnTo: "outputConnection"},
+    svgNot: {type: "1", drawSvg: true, dataIn: [1], dataOut: 1, function: functionNot, returnTo: "outputConnection"},
+    svgIn: {type: "1", drawSvg: true, dataIn: [0], dataOut: 1, function: functionIn, returnTo: "outputConnection"},
+    svgOut: {type: "0", drawSvg: true, dataIn: [1], dataOut: 0, function: functionOut},
   }
 }
 
@@ -182,6 +187,7 @@ const frameRender = () => {
   if(propsContext.calcSignals){
     Object.assign(propsContext, calcSignal(propsContext))
   }
+  
 
   draw()
 

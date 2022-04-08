@@ -1,32 +1,33 @@
+let thisPointsAreEqual = (pointOne, pointTwo) => {
+  return (pointOne.x === pointTwo.x) && (pointOne.y === pointTwo.y)
+}
+
 export const calcSignal = ({itens, defaultProps, connectionList, inputPosition}) => {
+  
+  let newConnectionList = connectionList
   let newItens = itens.map(item => {
     let funcItem = defaultProps[item.mode].function
     let inputsLevel = item.inputConnections.map(input => !!input.logicLevel)
     if(funcItem){
-      item[defaultProps[item.mode].returnTo] = funcItem(...inputsLevel,item)
+      let returnAddres = defaultProps[item.mode].returnTo
+      Object.assign(!!returnAddres? item[returnAddres]: item, funcItem(...inputsLevel,item))
     }
 
-    if(!!item.inputConnections.length){
-      let inputPositions = item.inputConnections.map(({inPos}) => inPos)
-      let outputPositions = itens.filter(item => !!item.outputConnection).map(({outputConnection}) => outputConnection.outPos)
-      let connectedInputs = item.inputConnections.filter(({connected}) => !!connected)
-      //console.log(outputPositions)
-      //itens.find()
+    if(item.outputConnection && !!item.outputConnection.connected){
+      newConnectionList[item.outputConnection.connectionId].logicLevel = item.outputConnection.logicLevel
+    }
+   
+    if(item.inputConnection && !!item.inputConnection.connected){
+      item.inputConnections.forEach((input,index) => {
+        item.inputConnections[index].logicLevel = !!newConnectionList[input.connectionId].logicLevel
+        
+      })
     }
 
-    return item
     
-    /*
-    if(item.outputConnection){
-      //console.log(item.outputConnection)
-    }
-    if(item.inputConnections && item.outputConnection){
-
-    }
-    */
-
-
+    return item
   })
+
   /*const checkConnections = () => {
     const arrItensToCheckInputs = itens.filter(item => defaultProps[item.nome].dataIn)
     //const arrItensToCheckOutputs = itens.filter(item => defaultProps[item.nome].dataOut)
@@ -43,7 +44,7 @@ export const calcSignal = ({itens, defaultProps, connectionList, inputPosition})
 
     })
 
-   /* arrItensToCheckOutputs.forEach(item => {
+    arrItensToCheckOutputs.forEach(item => {
       outputPoint = {x: (item.posx + 80) , y: (item.posy + 40) }
 
     })
@@ -52,36 +53,30 @@ export const calcSignal = ({itens, defaultProps, connectionList, inputPosition})
 
   checkConnections()*/
 
+  
+  const createConnection = (logicLevel = 0, inputs = [], outputs = []) => (
+    {inputs, outputs, logicLevel}
+  )
+  
+  const pushConnectionToList = (obj, connection) => {
+    let index = Object.keys(obj).length
+    return Object.assign(obj,{index: connection})
+  }
+
+  const changeLevelOfConnection = (connection, logicLevel) => (
+    Object.assign(connection,{logicLevel})
+  )
+  
+  const addPointsInConnection = (connection, type, ...points) => (
+    Object.assign(connection, {[type]: connection[type].concat(...points)})
+  )
+
+  const pointIsInConnection = (connection, point) => (
+    connection.inputs.find(input => thisPointsAreEqual(input,point))? "inputs": false || 
+    connection.outputs.find(output => thisPointsAreEqual(output,point))? "outputs": false
+  )
+
 /*
-  const changeLevelOfConnection = (inConnection, newLevel) => {
-    let connection = inConnection
-    connection.level = newLevel
-    return connection
-  }
-
-  const createConnection = (index, point, level) => {
-    let newConnectionList = {}
-    newConnectionList[index] = {points: [point], level: !!level}
-    return newConnectionList
-  }
-
-  const addPointInConnection = (connection, point) => {
-    let changedConnection = connection
-    changedConnection.points.push(point)
-    return changedConnection
-  }
-
-  const findConnectionWithPoint = (inPoint) => {
-    let connection = arrOfConnections.find(connection => {
-      const point = connection.points.find(point => {
-        const isEquals = point.x === inPoint.x && point.y === inPoint.y
-        return isEquals
-      })
-      return !!point
-    }) 
-    return connection
-  }
-
 
   itens.forEach(item => {
 
@@ -155,5 +150,5 @@ export const calcSignal = ({itens, defaultProps, connectionList, inputPosition})
 
   arrOfConnections = [] */
   //propsContext.calcSignals = false
-  return {itens: newItens}//{newConnectionList}
+  return {itens: newItens, connectionList: newConnectionList}//{newConnectionList}
 }
